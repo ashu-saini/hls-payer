@@ -1,14 +1,23 @@
 import * as React from "react";
 import Hls from "hls.js";
+import { assign, map, get, compact, forEach, mapValues, values } from 'lodash'
 import "./HlsJs.css";
 
-const HlsJs = ({ stream }) => {
+const HlsJs = ({
+  stream,
+  selectedQuality,
+  setAvailableQualities,
+  autoPlay,
+  isPlaying,
+  onPlayChange
+}) => {
   const [hls, setHls] = React.useState(null);
   const [isVideoElem, setVideoElem] = React.useState(false);
 
   const videoElem = React.useRef(null);
   const prevStreamRef = React.useRef("");
 
+  // intialize hls player
   React.useEffect(() => {
     if (!Hls.isSupported()) {
       setHls(null);
@@ -69,6 +78,28 @@ const HlsJs = ({ stream }) => {
       console.log(
         "manifest loaded, found " + data.levels.length + " quality level"
       );
+
+      const mapLevels = (levels) => {
+        const qualityMap = {
+          270: 160,
+          360: 360,
+          480: 480,
+          720: 720,
+          1080: 1080,
+        }
+
+        const mappedLevels = {}
+        forEach(levels, (level, i) => {
+            mappedLevels[level.height] = {
+              name: level.height,
+              label: level.height,
+              index: i,
+            }
+        })
+        return values(mappedLevels)
+      }
+      const mappedQualities = compact(mapLevels(data.levels))
+      setAvailableQualities(mappedQualities)
       //   videoElem.current.play()
     });
   }, [hls]);
@@ -105,13 +136,33 @@ const HlsJs = ({ stream }) => {
     });
   }, [hls]);
 
+  React.useEffect( () => {
+    if(!hls) return
+    if (selectedQuality?.index) {
+      hls.currentLevel = selectedQuality?.index
+    } else {
+      hls.currentLevel = -1
+    }
+  }, [hls, selectedQuality])
+
+  React.useEffect( () => {
+    if(videoElem?.current) {
+      if(isPlaying) {
+        videoElem.current.play()
+      } else {
+        videoElem.current.pause()
+      }
+    }
+  }, [videoElem, isPlaying])
+
   return (
     <video
       id="mh-video-stream-player"
       ref={videoElem}
-      muted={true}
+      muted={false}
+      autoPlay={autoPlay}
       playsInline
-      controls={true}
+      controls={false}
       style={{ pointerEvents: "auto" }}
       className="player"
     />
